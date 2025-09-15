@@ -2,50 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ponaLingo: Full Single Script Game</title>
+<title>ponaLingo Full Game</title>
 <style>
-body { font-family: Arial; background: #fef7e1; text-align:center; margin:0; padding:0;}
-h1 { color: #6b705c; margin:10px 0; }
-#dots-container { display:flex; overflow-x:auto; padding:10px; margin:10px; justify-content:center;}
-.dot { width:30px; height:30px; border-radius:50%; margin:5px; display:flex; justify-content:center; align-items:center; background:#ffd6a5; cursor:pointer;}
-.dot.locked { background:#ccc; cursor:not-allowed;}
+body { font-family: Arial; background: #fef7e1; margin:0; text-align:center;}
+h1 { color:#6b705c; margin:10px 0;}
+#dots-container { display:flex; overflow-x:auto; justify-content:center; padding:10px;}
+.dot { width:30px;height:30px;border-radius:50%;margin:5px;display:flex;justify-content:center;align-items:center;background:#ffd6a5; cursor:pointer;}
 .dot.completed { background:#6b705c; color:white;}
-#lesson-container { margin-top:20px; }
-button { padding:10px 20px; margin:10px; }
-#lesson-content { margin-top:10px; font-size:1.2em; }
+.dot.locked { background:#ccc; cursor:not-allowed;}
+#lesson-container { margin-top:20px;}
+button { padding:10px 20px; margin:10px;}
+#lesson-content { margin-top:10px; font-size:1.2em;}
+.word-button { margin:5px; padding:5px 10px; border-radius:5px; background:#ffd6a5; cursor:pointer; display:inline-block;}
 </style>
 </head>
 <body>
-<h1>ponaLingo</h1>
+<h1>ponaLingo: Full Game</h1>
 <div id="dots-container"></div>
 <div id="lesson-container">
   <h2 id="lesson-title">Select a lesson</h2>
   <div id="lesson-content"></div>
-  <button id="complete-btn" style="display:none;">Complete</button>
+  <button id="complete-btn" style="display:none;">Complete Lesson</button>
 </div>
 
 <script>
-// --- Lesson Data ---
+// --- Generate 20 sets x 5 lessons each = 100 lessons ---
 const lessons = [];
-for(let i=1;i<=10;i++){
-  if(i%5===0){
-    lessons.push({id:i,title:"Mini-Game "+i,type:"mini-game",gameType:"matching"});
-  } else {
-    lessons.push({id:i,title:"Lesson "+i,type:"lesson",words:["word"+i+"a","word"+i+"b","word"+i+"c"]});
-  }
-}
+const miniGames = ["Dino Dash","Balance Ball","Dodge Blocks"];
+let wordPool = [
+  "mi","sina","ona","moku","kili",
+  "toki","lukin","pona","suli","lili",
+  "suno","mun","poki","soweli","kala",
+  "jan","mama","tomo","lape","kasi",
+  "pan","sike","len","lawa","nena",
+  "kon","telo","soweli","lete","seli"
+];
 
-// --- Teacher Messages ---
-const teacherMessages = {
-  1:"Learn mi,sina,ona",
-  5:"Mini-game! Match words fast!",
-  6:"Next 4 lessons: 2 verbs, 1 adj, 1 noun",
-  10:"Mini-game! Check your knowledge!"
+let wordIndex=0;
+for(let set=1;set<=20;set++){
+  let setWords=[];
+  let count=5+(set%2); // variable number of words per set
+  for(let i=0;i<count;i++){
+    setWords.push(wordPool[wordIndex % wordPool.length]);
+    wordIndex++;
+  }
+  // 1 Learning lesson
+  lessons.push({id:lessons.length+1,title:`Set ${set} Learning`,type:"learning",words:setWords,message:`Learn ${setWords.length} words`});
+  // 3 normal lessons
+  lessons.push({id:lessons.length+1,title:`Set ${set} Drag & Drop`,type:"normal",subtype:"dragdrop",words:setWords,message:"Arrange words in order"});
+  lessons.push({id:lessons.length+1,title:`Set ${set} Spell Word`,type:"normal",subtype:"spell",words:setWords,message:"Spell the words"});
+  lessons.push({id:lessons.length+1,title:`Set ${set} What's Wrong?`,type:"normal",subtype:"wrong",words:setWords,message:"Identify the wrong sentence"});
+  // 1 mini-game
+  let game=miniGames[(set-1)%miniGames.length];
+  lessons.push({id:lessons.length+1,title:`Set ${set} Mini-Game`,type:"mini-game",game:game,message:`Play ${game}`});
 }
 
 // --- State ---
+let completed = [];
 let currentLesson = null;
-let completedLessons = [];
 
 // --- Elements ---
 const dotsContainer = document.getElementById('dots-container');
@@ -56,34 +70,54 @@ const completeBtn = document.getElementById('complete-btn');
 // --- Render Dots ---
 function renderDots(){
   dotsContainer.innerHTML="";
-  lessons.forEach(lesson=>{
-    const dot = document.createElement('div');
+  lessons.forEach(l=>{
+    const dot=document.createElement('div');
     dot.classList.add('dot');
-    if(completedLessons.includes(lesson.id)) dot.classList.add('completed');
-    else if(lesson.id>1 && !completedLessons.includes(lesson.id-1)) dot.classList.add('locked');
-    dot.textContent=lesson.id;
-    dot.onclick = ()=>{if(!dot.classList.contains('locked')) openLesson(lesson.id)};
+    if(completed.includes(l.id)) dot.classList.add('completed');
+    else if(l.id>1 && !completed.includes(l.id-1)) dot.classList.add('locked');
+    dot.textContent=l.id;
+    dot.onclick=()=>{if(!dot.classList.contains('locked')) openLesson(l.id)};
     dotsContainer.appendChild(dot);
   });
 }
 
 // --- Open Lesson ---
 function openLesson(id){
-  const lesson = lessons.find(l=>l.id===id);
-  currentLesson = lesson;
-  titleEl.textContent = lesson.title;
+  const lesson=lessons.find(l=>l.id===id);
+  currentLesson=lesson;
+  titleEl.textContent=lesson.title;
   completeBtn.style.display="inline-block";
   
-  // Show teacher message if exists
-  if(teacherMessages[id]) contentEl.innerHTML = `<em>${teacherMessages[id]}</em>`;
-  else if(lesson.type==="lesson") contentEl.innerHTML = "Words: "+lesson.words.join(", ");
-  else if(lesson.type==="mini-game") contentEl.innerHTML = `<em>Mini-game placeholder: ${lesson.gameType}</em>`;
+  // Show teaching message
+  contentEl.innerHTML=`<em>${lesson.message}</em>`;
+  
+  if(lesson.type==="learning"){
+    contentEl.innerHTML+= "<br>Words: "+lesson.words.join(", ");
+  }
+  else if(lesson.type==="normal"){
+    if(lesson.subtype==="dragdrop"){
+      contentEl.innerHTML+="<br>[Drag & Drop placeholder]<br>";
+      lesson.words.forEach(w=>{
+        const btn=document.createElement('div');
+        btn.classList.add('word-button');
+        btn.textContent=w;
+        contentEl.appendChild(btn);
+      });
+    } else if(lesson.subtype==="spell"){
+      contentEl.innerHTML+="<br>[Spell the word placeholder]<br>Words: "+lesson.words.join(", ");
+    } else if(lesson.subtype==="wrong"){
+      contentEl.innerHTML+="<br>[What's Wrong placeholder]<br>Words: "+lesson.words.join(", ");
+    }
+  }
+  else if(lesson.type==="mini-game"){
+    contentEl.innerHTML+="<br>[Mini-Game placeholder: "+lesson.game+"]";
+  }
 }
 
 // --- Complete Lesson ---
-completeBtn.onclick = ()=>{
-  if(currentLesson && !completedLessons.includes(currentLesson.id)){
-    completedLessons.push(currentLesson.id);
+completeBtn.onclick=()=>{
+  if(currentLesson && !completed.includes(currentLesson.id)){
+    completed.push(currentLesson.id);
     renderDots();
     alert("Lesson "+currentLesson.id+" completed!");
   }
